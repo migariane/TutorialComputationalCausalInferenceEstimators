@@ -2,7 +2,7 @@
 
 ### Matthew James Smith, Camille Maringe, Bernard Rachet, Mohammad A. Mansournia, Paul Zivich, Stephen R. Cole, Miguel Angel Luque Fernandez
 
-### This repository makes available to the scientific community the data and code used in the preprint manuscript available at
+### This repository makes available to the scientific community the data and code used in the manuscript available at
 
 [Link to the published article]()
 
