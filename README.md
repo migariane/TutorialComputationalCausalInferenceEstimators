@@ -1,17 +1,19 @@
 ## Educational notes: Introduction to computational causal inference using reproducible Stata, R and Python code
 
-### Matthew J. Smith 1| Mohammad Ali Mansournia 2| Camille Maringe 1| Paul N. Zivich 3,4| Stephen R. Cole 3| Clemence Leyrat 1| Aurelien Belot 1| Bernard Rachet 1| Miguel Angel Luque-Fernandez *1,5,6
+### Authors
+Matthew J. Smith 1| Mohammad Ali Mansournia 2| Camille Maringe 1| Paul N. Zivich 3,4| Stephen R. Cole 3| Clemence Leyrat 1| Aurelien Belot 1| Bernard Rachet 1| Miguel Angel Luque-Fernandez *1,5,6|
 
-### Affiliations
+### Affiliations  
 1. Inequalities in Cancer Outcomes Network, Department of Non-communicable Disease Epidemiology. London School of Hygieneand Tropical Medicine, London, U.K.
 2. Department of Epidemiology andBiostatistics. Tehran University of MedicalSciences, Tehran, Iran.
 3. Department of Epidemiology. University of North Carolina at Chapel Hill, North Carolina, U.S.
 4. Carolina Population Center. University ofNorth Carolina at Chapel Hill, North Carolina, U.S.
-5. Non-communicable Disease and Cancer Epidemiology Group, Instituto de investigacion Biosanitaria de Granada (ibs.GRANADA), Andalusian School of Public Health, University of Granada, Granada, Spain 6. Biomedical Network Research Centers of Epidemiology and Public Health (CIBERESP), Madrid, Spain.
+5. Non-communicable Disease and Cancer Epidemiology Group, Instituto de investigacion Biosanitaria de Granada (ibs.GRANADA), Andalusian School of Public Health, University of Granada, Granada, Spain. 
+6. Biomedical Network Research Centers of Epidemiology and Public Health (CIBERESP), Madrid, Spain.  
 
-Correspondence* Miguel Angel Luque-Fernandez, Email: miguel-angel.luque@lshtm.ac.uk
+Correspondence* Miguel Angel Luque-Fernandez, Email: miguel-angel.luque@lshtm.ac.uk  
 
-This repository makes available to the scientific community the data and code used in the manuscript available at
+This repository makes available to the scientific community the data and code used in the manuscript available at  
 
 [Link to the published article]()
 
