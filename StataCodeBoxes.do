@@ -2,16 +2,16 @@
 Tutorial: causal inference methods made easy for applied resarchers/epidemiologists/statisticians 
 =================================================================================================
 
-ICON-LSHTM, LONDON, 12th January 2021
+ICON-LSHTM, LONDON, 30th June 2021
 
 Miguel Angel Luque Fernandez, PhD
 Assistant Professor of Epidemiology and Biostatistics
 Camille Maringe, PhD
-Assistant Professor
+Assistant Professor of Cncer Epidemiology
 
 Inequalities in Cancer Outcomes Network, LSHTM, London, UK
 
-Copyright (c) 2021 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+Copyright (c) 2020 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
@@ -23,7 +23,7 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 *** Preliminaries
 			clear
 			set more off
-			cd "your path\Data" 					// this path should point to where the RHC data are
+			*cd "C:\Data" 					// this path should point to where the RHC data are
 			use "rhc.dta", clear
 			describe
 			count
@@ -33,8 +33,8 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			* Define the outcome (Y), exposure (A), confounder (C), and confounders (W)
 			global Y death_d30 
 			global A rhc 
-			global C gender  
-			global W gender age edu race carcinoma 
+			global C sex 
+			global W sex age edu race carcinoma 
 	
 /* Box 2: Naive estimate of the ATE */
 			* Naive approach to estimate the causal effect
@@ -44,13 +44,14 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 /* 3. G-formula */
 /* 3.1 Non-parametric G-formula */
        
+	   * 1) ATE    
 /* Box 3: Non-parametric G-Formula for the ATE */
             proportion $C
             matrix m=e(b)
-            gen genderf = m[1,1]
-            sum genderf
-            gen genderm = m[1,2]
-            sum genderm
+            gen sexf = m[1,1]
+            sum sexf
+            gen sexm = m[1,2]
+            sum sexm
 			* you may need to install the command sumup, type:
 			* ssc install sumup
             sumup $Y, by($A $C)
@@ -60,25 +61,24 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
             matrix y01 = r(Stat2)
             matrix y10 = r(Stat3)
             matrix y11 = r(Stat4)
-            gen EY1 = ((y11[3,1]-y01[3,1]))*genderm 
-			gen EY0 = ((y10[3,1]-y00[3,1]))*genderf
+            gen EY1 = ((y11[3,1]-y01[3,1]))*sexm 
+			gen EY0 = ((y10[3,1]-y00[3,1]))*sexf
             qui: mean EY1 EY0
 			matrix ATE =  r(table) 
             display "The ATE is: "  ATE[1,1] + ATE[1,2]
             drop EY*
             * The ATE from non-parametric estimator is:  0.073692
 			// Also one can try
-			gen ATE = ((y11[3,1]-y01[3,1]))*genderm + ((y10[3,1]-y00[3,1]))*genderf
+			gen ATE = ((y11[3,1]-y01[3,1]))*sexm + ((y10[3,1]-y00[3,1]))*sexf
 			qui sum ATE
 			drop ATE
 			
             * Check that Stata "teffects" command obtains the same estimate
             teffects ra ($Y $C) ($A)
-            * The ATE from "teffects" implementation is:  0.073692
+            * The ATE from "teffects" implementation is:  0.0736921
     	
-/* Box 4: Bootstrap 95% Confidence Intervals (CI) for the ATE/ATT estimated using the Non-parametric G-Formula */
+/* Box 4: Bootstrap 95% Confidence Intervals (CI) for the ATE estimated using the Non-parametric G-Formula */
         
-		* 1) For the ATE
 			capture program drop ATE
             program define ATE, rclass
 				capture drop y1
@@ -89,18 +89,19 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 				matrix y01 = r(Stat2)
 				matrix y10 = r(Stat3)
 				matrix y11 = r(Stat4)
-				gen ATE = ((y11[3,1]-y01[3,1]))*genderm + ((y10[3,1]-y00[3,1]))*genderf
+				gen ATE = ((y11[3,1]-y01[3,1]))*sexm + ((y10[3,1]-y00[3,1]))*sexf
 				qui sum ATE
 				return scalar ate = `r(mean)'
             end
             
-            qui bootstrap r(ate), reps(1000): ATE
+            qui bootstrap r(ate), reps(1000) seed(1): ATE  // Bootstrap 1000 estimates of the ATE
             estat boot, all	
+            drop ATE 
     	
 /* Box 5: Non-parametric G-Formula using a fully saturated regression model in Stata (A) */
 			* method 1: conditional probabilities
             regress $Y ibn.$A ibn.$A#c.($C) , noconstant vce(robust) coeflegend
-            predictnl ATE = (_b[1.rhc] + _b[1.rhc#c.gender]*gender) - (_b[0bn.rhc] + _b[0bn.rhc#c.gender]*gender)
+            predictnl ATE = (_b[1.rhc] + _b[1.rhc#c.sex]*sex) - (_b[0bn.rhc] + _b[0bn.rhc#c.sex]*sex)
 			qui: sum ATE
             display "The ATE is:  " "`r(mean)'"
             drop ATE
@@ -121,20 +122,18 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 
 /* Box 7: Parametric G-formula */		
 			* Calculations by hand
-			* Expected probability amongst treated
+			* Regresion model and expected probability amongst treated those with RHC
 			regress $Y $C if $A==1      
 			predict double y1hat
-			
-			* Expected probability amongst untreated
+			* Regression model and expected probability amongst untreated those without RHC
 			regress $Y $C if $A==0      
 			predict double y0hat
 			mean y1hat y0hat            
-			
 			* Difference between expected probabilities (ATE) and biased confidence interval
 			lincom _b[y1hat] - _b[y0hat]  
 	
 /* Box 8: Parametric regression adjustment using Stata's teffects (one confounder) */
-			teffects ra ($Y $C) ($A) 
+			teffects ra ($Y $C) ($A) // Parametric g-formula implemented in Stata
 
 /* Box 9: Bootstrap for the parametric regression adjustment */
 			capture program drop ATE
@@ -151,17 +150,21 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			   lincom _b[y1]-_b[y0]
 			   return scalar ace =`r(estimate)'
 			end
-			qui bootstrap r(ace), reps(1000): ATE
+			qui bootstrap r(ace), reps(1000) seed(1): ATE
 			estat boot, all
-
+			
 * More than one confounder
-
-/* Box 10: Parametric multivariate regression adjustment implementation of the G-Formula */
+           * Naive approach
+		    regress $Y $A $W
+		   * Box 10: Parametric multivariate regression adjustment implementation of the G-Formula */
+			* Regresion model and expected probability amongst treated those with RHC
 			regress $Y $W if $A==1
 			predict double y1hat 
+			* Regression model and expected probability amongst untreated those without RHC
 			regress $Y $W if $A==0
 			predict double y0hat
 			mean y1hat y0hat
+			* Difference between expected probabilities (ATE) and biased confidence interval
 			lincom _b[y1hat] - _b[y0hat]
 		
 /* Box 11: Parametric multivariate regression adjustment using Stata’s teffects command */	
@@ -187,7 +190,7 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			   lincom _b[y1]-_b[y0]
 			   return scalar ace =`r(estimate)'
 			end
-			qui bootstrap r(ace), reps(1000): ATE dots
+			qui bootstrap r(ace), reps(1000) seed(1): ATE dots
 			estat boot, all
 
 /* 4 Inverse probability of treatment weighting  */		
@@ -219,9 +222,22 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			program define ATE, rclass
 			   capture drop y1
 			   capture drop y0
+			   capture drop ipw0
+			   capture drop ipw1
+			   capture drop ps
+			   * propensity score model for the exposure
+			   logit $A $W, vce(robust) nolog
+			   * propensity score predictions
+			   predict double ps
+			   * Sampling  weights  for  the  treated  group
+			   generate double ipw1 = ($A==1)/ps
+			   * Sampling  weights  for  the  non-treated  group
+			   generate double ipw0 = ($A==0)/(1-ps)
+			   * Weighted  outcome  probability  among  treated
 			   regress $Y [pw=ipw1]
 			   matrix y1 = e(b)
 			   gen double y1 = y1[1,1]
+			   * Weighted  outcome  probability  among  non treated
 			   regress $Y [pw=ipw0]
 			   matrix y0 = e(b)
 			   gen double y0 = y0[1,1]
@@ -229,9 +245,9 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			   lincom _b[y1]-_b[y0]
 			   return scalar ace = `r(estimate)'
 			end
-			qui bootstrap r(ace), reps(1000): ATE
+			qui bootstrap r(ace), reps(1000) seed(1): ATE
 			estat boot, all
-    
+			
 /* Box 16: Computation of the IPTW estimator for the ATE using Stata’s teffects command */ 
 			teffects ipw ($Y) ($A $W, logit), nolog vsquish
 
@@ -240,16 +256,16 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			qui teffects ipw ($Y) ($A $W)   
 			tebalance summarize
 			
-			* By hand - with the example of gender
-			egen  genderst = std(gender) 	//  Standardization
+			* By hand - with the example of sex
+			egen  sexst = std(sex) 	//  Standardization
 			logistic $A $W 				 	//  Propensity  score
 			capture drop ps
 			predict  double  ps
 			gen  ipw = .
 			replace  ipw=($A==1)/ps if $A==1
 			replace  ipw=($A==0)/(1-ps) if $A==0
-			regress  genderst  $A 		 	// Raw  difference
-			regress  genderst  $A [pw=ipw]  // Standardized  difference
+			regress  sexst  $A 		 	 // Raw  difference
+			regress  sexst  $A [pw=ipw]  // Standardized  difference
 		
 /* Box 18: Assessing IPTW overlap by hand */
 			sort $A
@@ -263,7 +279,6 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 /* Box 19: Assessing overlap using Stata's teffects overlap */
 			qui: teffects ipw ($Y) ($A $W, logit), nolog vsquish
 			teffects overlap
-
 			
 /* 4.2 Marginal structural model with stabilized weights */		
 /* Box 20: Computation of the IPTW estimator for the ATE using a MSM */
@@ -293,32 +308,37 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			reg $Y $A [pw=sws], vce(robust) 	// MSM stabilized weight
 
 
-/* 4.3 IPTW with regression adjustment */
+/* 5.Double Robuts Methods */
+/* 5.1 IPTW with regression adjustment */
 		
 /* Box 21: Computation of the IPTW-RA estimator for the ATE and bootstrap for statistical inference */
 			capture program drop ATE
 			program define ATE, rclass
 			   capture drop y1
 			   capture drop y0
+			   // Weighted (stabilized weights) regression adjustment among the treated 
 			   reg $Y $W if $A==1 [pw=sws]
 			   predict double y1, xb
 			   quiet sum y1
 			   return scalar y1=`r(mean)'
+			   // Weighted (stabilized weights) regression adjustment among the non-treated 
 			   reg $Y $W if $A==0 [pw=sws]
 			   predict double y0, xb 
 			   quiet sum y0
 			   return scalar y0=`r(mean)'
 			   mean y1 y0 
+			   // ATE 
 			   lincom _b[y1]-_b[y0]
-			   return scalar ace =`r(estimate)'
+			   return scalar ate =`r(estimate)'
 			end
-			qui bootstrap r(ace), reps(10): ATE
+			qui bootstrap r(ate), reps(1000) seed(1): ATE // Bootstraping for statistical inference
 			estat boot, all
+            drop ATE
 		
 /* Box 22: Computation of the IPTW-RA estimator for the ATE using Stata’s teffects */
-			teffects ipwra ($Y $W) ($A $W), nolog vsquish
-    
-/* 5. Augmented inverse probability weighting */	
+			teffects ipwra ($Y $W) ($A $W) , nolog vsquish
+		
+/* 5.2 Augmented inverse probability weighting */	
 /* Box 23: Computation of the AIPTW estimator for the ATE and bootstrap for statistical inference */
 			* Step (i) prediction model for the outcome
 			qui glm $Y $A $W, fam(bin) 
@@ -370,13 +390,12 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			lincom _b[y1] - _b[y0]
 			return scalar ace =`r(estimate)'
 			end
-			qui bootstrap r(ace), reps(1000): ATE
+			qui bootstrap r(ace), reps(1000) seed(1): ATE
 			estat boot, all
 
-/* Box 24: Computation of the AIPTW estimator for the ATE using Stata’s teffects */
-			teffects aipw ($Y $W) ($A $W, logit), nolog vsquish
-
-		
+/* Box 24: Computation of the AIPTW estimator for the ATE and marginal risk ratio using Stata’s teffects */
+		   teffects aipw ($Y $W) ($A $W, logit)
+			
 /* 6. DATA-ADAPTIVE ESTIMATION: ENSEMBLE LEARNING TARGETED MAXIMUMLIKELIHOOD ESTIMATION*/
 /*Box 25: Computational implementation of TMLE by hand */
 
@@ -418,7 +437,7 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			global ATE = r(mean)
 			drop ATE 
 			
-			* Step 6: Statistical inference (efficient influence curve)
+			* Step 6: Statistical inference. Functional Delta-method: Influence Fuction
 			qui sum(Q1W_1)
 			gen EY1tmle = r(mean)
 			qui sum(Q0W_1)
@@ -427,23 +446,21 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			gen d1 = (($A  * ($Y - Q1W_1)/gw)) + Q1W_1 - EY1tmle
 			gen d0 = ((1 - $A ) * ($Y - Q0W_1)/(1 - gw))  + Q0W_1 - EY0tmle
 
-			gen IC = d1 - d0
-			qui sum IC
-			gen varIC = r(Var) / r(N)
-			drop d1 d0 IC
+			gen IF = d1 - d0
+			qui sum IF
+			gen varIF = r(Var) / r(N)
+			drop d1 d0 IF
 			
-			global LCI =  $ATE - 1.96*sqrt(varIC)
-			global UCI =  $ATE + 1.96*sqrt(varIC)
+			global LCI =  $ATE - 1.96*sqrt(varIF)
+			global UCI =  $ATE + 1.96*sqrt(varIF)
 			display "ATE:"  %05.4f  $ATE _col(15) "95%CI: " %05.4f  $LCI "," %05.4f  $UCI		
 
 /* Box 26: TMLE with data-adaptive estimation using the Stata’s user writen eltmle */
 			* if not already installed, type:
-			* github install migariane/eltmle (last update January 2021)
-			* alternatively: ssc install eltmle
-			preserve
+			* ssc install eltmle 
+			* github install migariane/eltmle
 			eltmle $Y $A $W, tmle   
-			restore
-
+			etlmle $Y $A $W, tmnle bal // check balance
 		
 /* 7. Simulation */
 /* Box 27: Data generation for the Monte Carlo experiment */
@@ -461,7 +478,8 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			gen Y1    = (invlogit(-3 + 1 + 0.25*(w4) + 0.75*(w3) + 0.8*(w2)*(w4) + 0.05*(w1))) // Potential outcome 1
 			gen Y0    = (invlogit(-3 + 0 + 0.25*(w4) + 0.75*(w3) + 0.8*(w2)*(w4) + 0.05*(w1))) // Potential outcome 2
 			gen psi   = Y1-Y0  // Simulated ATE
-			gen Y     = A*(Y1) + (1 - A)*Y0 //Binary outcome
+			gen Y     = A*(Y1) + (1 - A)*Y0 // Binary outcome (consistency)
+
 	
 	// Estimate the true simulated ATE
 			mean psi
@@ -489,23 +507,21 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			estout psi ra ipw ipwra aipw
 		
 		// Ensemble learning maximum likelihood estimation
-			preserve
 			eltmle Y A w1 w2 w3 w4, tmle
-			restore
 				
 		// Relative bias of each ATE
 			* Regression adjustment
-			display abs(0.1787 - 0.203419)/0.1787 
+			display abs(0.1787412 - 0.203419)/0.1787412 
 			
 			* IPTW
-			display abs(0.1787 - 0.2776)/0.1787 
+			display abs(0.1787412 - 0.2776606)/0.1787412
 			
 			* IPTW-RA
-			display abs(0.1787 - .2052088)/0.1787
+			display abs(0.1787412 - 0.2052088)/0.1787412
 			
 			* AIPTW
-			display abs(0.1787 - 0.2030)/0.1787
+			display abs(0.1787412 - 0.2030092)/0.1787412
 			
 			* ELTMLE
-			display abs(0.1787 - 0.1784)/0.1787
+			display abs(0.1787412 - 0.1787)/0.1787412
 				

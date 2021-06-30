@@ -2,7 +2,7 @@
 
 # Tutorial: causal inference methods made easy for applied resarchers/epidemiologists/statisticians 
 
-# ICON-LSHTM, LONDON, 12th January 2021
+# ICON-LSHTM, LONDON, 30th June 2020
 
 # Miguel Angel Luque Fernandez, PhD
 # Assistant Professor of Epidemiology and Biostatistics
@@ -11,7 +11,7 @@
 
 # Inequalities in Cancer Outcomes Network, LSHTM, London, UK
 
-# Copyright (c) 2021 Permission is hereby granted, free of charge, to any person obtaining a copy 
+# Copyright (c) 2020 Permission is hereby granted, free of charge, to any person obtaining a copy 
 # of this software and associated documentation files (the "Software"), to deal in the Software 
 # without restriction, including without limitation the rights to use, copy, modify, merge, 
 # publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to 
@@ -44,13 +44,14 @@
   # Define the outcome (Y), exposure (A), confounder (C), and confounders (W)
   data$Y  <- data$death_d30; data$Y <- as.numeric(data$Y); Y <- data$Y 
   data$A  <- data$rhc; data$A <- as.numeric(data$A); A <- data$A
-  data$C  <- data$gender; data$C <- as.numeric(data$C); C <- data$C
+  data$C  <- data$sex; data$C <- as.numeric(data$C); C <- data$C
   data$w1 <- data$age; data$w1 <- as.numeric(data$w1); w1 <- data$w1
   data$w2 <- data$edu; data$w2 <- as.numeric(data$w2); w2 <- data$w2
   data$w3 <- data$race; data$w3 <- as.numeric(data$w3); w3 <- data$w3
   data$w4 <- data$carcinoma; data$w4 <- as.numeric(data$w4); w4 <- data$w4
   data2   <- as.data.frame(Y); data2$A <- A; data2$C <- C; data2$w1 <- w1; data2$w2 <- w2; data2$w3 <- w3; data2$w4 <- w4
     
+  
   ### Box 2: Naive estimate of the ATE
   naive <- lm(Y ~ A + C, data=data); naive  # Naive estimate of the ATE is 0.07352
 
@@ -69,15 +70,7 @@
      (mean(data$Y[data$A==1 & data$C==0]) - mean(data$Y[data$A==0 & data$C==0]))*pr.l[1]   # G-formula Non-parametric ATE 
     ATE; rm(ATE)    # The ATE from the non-parametric estimator is 0.073692
     
-    ### Box 4: Non-parametric G-formula for the ATT
-    ATTm <- mean(data$C[data$A==1], na.rm=TRUE)       # Proportion of those who are male amongst treated
-    ATTf <- 1-mean(data$C[data$A==1], na.rm=TRUE)       # Proportion of those who are female amongst treated  
-    ATT <-((mean(data$Y[data$A==1 & data$C==1]) - mean(data$Y[data$A==0 & data$C==1]))*ATTm) + 
-    (mean(data$Y[data$A==1 & data$C==0]) - mean(data$Y[data$A==0 & data$C==0]))*ATTf   # G-formula Non-parametric ATT
-    ATT       # The ATT from the non-parametric estimator is 0.073248
-    rm(ATT)
-    
-    ### Box 5: Bootstrap the 95% confidence intervals (CI) for the ATE/ATT estimated using the non-parametric G-Formula
+    ### Box 4: Bootstrap the 95% confidence intervals (CI) for the ATE/ATT estimated using the non-parametric G-Formula
     # ATE
     library(boot)
     g.comp = function(data,indices)     # Define the function to estimate the ATE
@@ -89,28 +82,11 @@
        (mean(dat$Y[dat$A==1 & dat$C==0]) - mean(dat$Y[dat$A==0 & dat$C==0]))*pr.l[1] ; ATE
     }
     g.comp(data,indices=1:nrow(data))     # Can get original estimate, by plugging in indices 1:n
-    boot.out=boot(data,g.comp,200)        # Draw 200 bootstrap sample estimates 
+    boot.out=boot(data,g.comp,200)      # Draw 200 bootstrap sample estimates 
     boot.ci(boot.out,type="perc",conf=0.95)     # compute confidence intervals using percentile method
     boot.ci(boot.out,type="norm",conf=0.95)
     
-    # ATT
-    g.comp = function(data,indices)       # Define the function to estimate the ATT
-    {
-      dat=data[indices,]
-      
-      ATTm <- mean(dat$C[dat$A==1], na.rm=TRUE) # Proportion of those who are male among treated
-      ATTf <- 1-mean(dat$C[dat$A==1], na.rm=TRUE)  
-      
-      ((mean(dat$Y[dat$A==1 & dat$C==1]) - mean(dat$Y[dat$A==0 & dat$C==1]))*ATTm) + 
-        (mean(dat$Y[dat$A==1 & dat$C==0]) - mean(dat$Y[dat$A==0 & dat$C==0]))*ATTf 
-    }
-    g.comp(data,indices=1:nrow(data))           # Can get original estimate, by plugging in indices 1:n
-    boot.out=boot(data,g.comp,200)              # Draw 200 bootstrap sample estimates 
-    boot.ci(boot.out,type="perc",conf=0.95)     # compute confidence intervals using percentile method
-    boot.ci(boot.out,type="norm",conf=0.95)
-    
-  
-    ### Box 6: Non-parametric G-Formula using a fully saturated regression model in Stata (A)
+    ### Box 5: Non-parametric G-Formula using a fully saturated regression model in Stata (A)
         # Method 1: conditional probabilities
     data$A1 <- ifelse(data$A == 1, 1, 0)
     data$A0 <- ifelse(data$A == 0, 1, 0)
@@ -119,6 +95,8 @@
     reg <- glm(Y ~ -1 + (A1 + A0) + A1:(C1) + A0:(C1), data=data); summary(reg)
     ATE <- mean((reg$coefficients[1] + reg$coefficients[3]*C) - (reg$coefficients[2] + reg$coefficients[4]*C)); ATE
     rm(ATE)
+    
+    ### Box 6: Non-parametric G-Formula using a fully saturated regression model in Stata (B)
         # Method 2: Marginal probabilities
     install.packages("margins")
     library(margins)
@@ -139,6 +117,7 @@
     Y.0 <- GcompRA$Y0
     ATE <- mean((Y.1) - (Y.0), na.rm=TRUE); ATE     # Difference between expected probabilities (ATE) 
     rm(ATE)
+  
     
     ### Box 8: Parametric regression adjustment (one confounder) using stdReg R-package
     install.packages("stdReg")
@@ -231,7 +210,7 @@
       dat=data[indices,]
       mean(dat$w*as.numeric(dat$A==1)*dat$Y) - mean(dat$w*as.numeric(dat$A==0)*dat$Y)
     }
-    iptw.w(data,indices=1:nrow(data))   # Can get original estimate, by plugging in indices 1:n
+    iptw.w(data,indices=1:nrow(data))     # Can get original estimate, by plugging in indices 1:n
     boot.out=boot(data,iptw.w,100)      # Draw 200 bootstrap sample estimates 
     boot.ci(boot.out,type="perc",conf=0.95)     # compute confidence intervals using percentile method
     boot.ci(boot.out,type="norm",conf=0.95)
@@ -340,9 +319,10 @@
     beta <- coef(msm)
     lcl <- beta-1.96*SE 
     ucl <- beta+1.96*SE
-    cbind(beta, lcl, ucl)[2,]     
-
-  ## 4.3 IPTW with regression adjustment  
+    cbind(beta, lcl, ucl)[2,]  
+    
+## Double-robust methods
+  ## 5.1 IPTW with regression adjustment  
     ### Box 21: Computation of the IPTW-RA estimator for the ATE and bootstrap for statistical inference
     glm1  <- glm(Y ~ C + w1 + w2 + w3 + w4,  weights = data$w[data$A==1], data=data[data$A==1,])
     Y.1 = predict(glm1,  newdata=data.frame(A = 1, C, w1, w2, w3, w4), type="response")
@@ -367,7 +347,7 @@
     msm <- (svyglm(Y ~ A, design = svydesign(~ 1, weights = ~ sw, data = data2)))
     coef(msm);  confint(msm)
   
-# 5. Augmented inverse probability weighting
+  ## 5.2 Augmented inverse probability weighting
     
     ### Box 23: Computation of the AIPTW estimator for the ATE and bootstrap for statistical inference
     mod  <- glm(Y ~ A + C + w1 + w2 + w3 + w4, family="binomial", data=data)
@@ -383,6 +363,7 @@
     gw <- predict(g, type = "response")
     gws <- ifelse(data$A == 0, (-(1 - data$A)/(1 - gw)),(data$A/gw)); sum(gws)    # estimation of weights
     AIPTW <- mean(gws*(data$Y - plogis(RA$Yhat)) + ((Y.1a) - (Y.0a))); AIPTW  # ATE 
+    RR <- mean(Y.1a/Y.0a); RR # RR
     
     IC <- (gws*(data$Y - plogis(RA$Yhat)) + ((Y.1a) - (Y.0a)))-AIPTW    # Estimate the influence function (functional Delta method)
     n  <- nrow(data)
@@ -403,12 +384,12 @@
       gws <- ifelse(A == 0, (-(1 - A)/(1 - gw)),(A/gw))
       mean(gws*(Y - plogis(Yhat)) + (plogis(Y1) - plogis(Y0)))
     }
-    AIPTW.b(data,indices=1:nrow(data))    # Can get original estimate, by plugging in indices 1:n
-    boot.out=boot(data,AIPTW.b,200)     # Draw 200 bootstrap sample estimates 
+    AIPTW.b(data,indices=1:nrow(data))     # Can get original estimate, by plugging in indices 1:n
+    boot.out=boot(data,AIPTW.b,200)        # Draw 200 bootstrap sample estimates 
     boot.ci(boot.out,type="perc",conf=0.95)     # compute confidence intervals using percentile method
     boot.ci(boot.out,type="norm",conf=0.95)
     
-    ### Box 24: Computation of the AIPTW estimator for the ATE using the R package drtmle 
+    ### Box 23 bis: Computation of the AIPTW estimator using drtmle package for the ATE
     w <- subset(data, select=c(C, w1, w2, w3 , w4))
     fit1 <- drtmle(W = w, A = A, Y = Y, # input data
                    a_0 = c(0, 1), # return estimates for A = 0 and A = 1
@@ -442,15 +423,23 @@
     H1W = (1/gW)
     H0W = (-1 / (1 - gW))
     epsilon <- coef(glm(data2$Y ~ -1 + HAW + offset(QAW), family = "binomial"))
-    # Step 4  ATE
-    ATE<- mean(plogis(Q1W + epsilon * H1W) - plogis(Q0W + epsilon * H0W)); ATE
-    # Step 5  Maringinal RR
-    T1.EY1 <- mean(plogis(Q1W + epsilon * H1W)) 
-    T1.EY0 <- mean(plogis(Q0W + epsilon * H0W))
-    RR <- (T1.EY1/T1.EY0); RR
-    rm(ATE, RR)
+    # Step 4 update from Q0 to Q1 ATE
+    Q1W_1 <- plogis(Q1W + epsilon * H1W) 
+    Q0W_1 <- plogis(Q0W + epsilon * H0W)
+    # Step 5 targeted estimate of the ATE
+    ATE <- mean(Q1W_1 - Q0W_1); ATE
+    # Step 6 statistical inference
+    d1 <- ((data2$A * (Y - Q1W_1)/gW)) + Q1W_1 - mean(Q1W_1)
+    d0 <- ((1 - data2$A) * (Y - Q0W_1)/(1 - gW)) + Q0W_1 - mean(Q0W_1)
+    IF <- d1 - d0
+    n <- nrow(data2)
+    varIF <- var(IF)/n
+    LCI <- ATE - 1.96*sqrt(varIF)
+    UCI <- ATE + 1.96*sqrt(varIF)
+    cbind(ATE, LCI, UCI)
+    rm(ATE)
     
-    ### Box 26: TMLE with data-adaptive estimation using the R package tmle
+    ### Box 26: TMLE with data-adaptive estimation using the R package
     set.seed(777)
     library(tmle)
     w <- subset(data, select=c(C, w1, w2, w3 , w4))
@@ -565,8 +554,7 @@
     # Estimate of TMLE + SL2 default plus more algorithms
     mean(ATEtmle3)
     mean(RRtmle3)
-    save.image("SimResults.RData")
-    #save.image("your path\results.RData")
+    save.image("your path\results.RData")
     
 # Relative Bias ATE
 abs(mean((True_ATE - ATE_AIPTW) / True_ATE)*100)
