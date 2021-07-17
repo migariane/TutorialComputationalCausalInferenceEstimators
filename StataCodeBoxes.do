@@ -40,6 +40,8 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			* Naive approach to estimate the causal effect
 			regr $Y $A $C 	
 			* The naive estimate of the causal effect is 0.07352
+			* Boostrap 95% CI
+			qui bootstrap, reps(1000) seed(1):	regr $Y $A $C 	
 
 /* 3. G-formula */
 /* 3.1 Non-parametric G-formula */
@@ -81,8 +83,6 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
         
 			capture program drop ATE
             program define ATE, rclass
-				capture drop y1
-				capture drop y0
 				capture drop ATE
 				sumup $Y, by($A $C)
 				matrix y00 = r(Stat1)
@@ -100,10 +100,24 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
     	
 /* Box 5: Non-parametric G-Formula using a fully saturated regression model in Stata (A) */
 			* method 1: conditional probabilities
-            regress $Y ibn.$A ibn.$A#c.($C) , noconstant vce(robust) coeflegend
-            predictnl ATE = (_b[1.rhc] + _b[1.rhc#c.sex]*sex) - (_b[0bn.rhc] + _b[0bn.rhc#c.sex]*sex)
-			qui: sum ATE
-            display "The ATE is:  " "`r(mean)'"
+			regress $Y ibn.$A ibn.$A#c.($C) , noconstant vce(robust) coeflegend
+			predictnl ATE = (_b[1.rhc] + _b[1.rhc#c.sex]*sex) - (_b[0bn.rhc] + _b[0bn.rhc#c.sex]*sex)
+			qui sum ATE
+			display "The ATE is: "  `r(mean)'
+			drop ATE
+			
+			// Bootstrap 95% CI
+			capture program drop ATE
+            program define ATE, rclass
+				capture drop ATE
+				regress $Y ibn.$A ibn.$A#c.($C) , noconstant vce(robust) coeflegend
+				predictnl ATE = (_b[1.rhc] + _b[1.rhc#c.sex]*sex) - (_b[0bn.rhc] + _b[0bn.rhc#c.sex]*sex)
+				qui sum ATE
+				return scalar ate = `r(mean)'
+			end
+			
+			qui bootstrap r(ate), reps(1000) seed(1): ATE 
+			estat boot, all
             drop ATE
 			
 /* Box 6: Non-parametric G-Formula using a fully saturated regression model in Stata (B) */
@@ -153,10 +167,11 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			qui bootstrap r(ace), reps(1000) seed(1): ATE
 			estat boot, all
 			
-* More than one confounder
-           * Naive approach
+* More than one confounder naive approach
 		    regress $Y $A $W
-		   * Box 10: Parametric multivariate regression adjustment implementation of the G-Formula */
+			bootstrap, reps(1000) seed(1): regress $Y $A $W
+			
+/* Box 10: Parametric multivariate regression adjustment implementation of the G-Formula */
 			* Regresion model and expected probability amongst treated those with RHC
 			regress $Y $W if $A==1
 			predict double y1hat 
@@ -207,13 +222,13 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			generate double ipw1 = ($A==1)/ps
 			
 			*  Weighted  outcome  probability  among  treated
-			regress $Y [pw=ipw1]
-			scalar Y1 = _b[_cons]
+			mean $Y [pw=ipw1], coeflegend
+			scalar Y1 = _b[death_d30]
 			
 			*  Sampling  weights  for  the  non-treated  group
 			generate double ipw0 = ($A==0)/(1-ps)
-			regress $Y [pw=ipw0]
-			scalar Y0 = _b[_cons]
+			mean $Y [pw=ipw0], coeflegend
+			scalar Y0 = _b[death_d30]
 			display "ATE =" Y1 - Y0
 	
 /* Box 15: Bootstrap computation for the IPTW estimator */
@@ -307,7 +322,31 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			reg $Y $A [pw=ipw], vce(robust) 	// MSM unstabilized weight
 			reg $Y $A [pw=sws], vce(robust) 	// MSM stabilized weight
 
-
+            * Bootstrap the 95% confidence intervals
+			capture program drop ATE
+			program define ATE, rclass
+			capture drop nps
+			capture drop dps
+			capture drop sws
+		    * Baseline treatment probabilities
+				logit $A, vce(robust) nolog
+				predict double nps, pr
+				* propensity score model
+				logit $A $W, vce(robust) nolog
+				predict double dps, pr
+				* Stabilized weight 
+				gen sws = .
+				replace sws = nps/dps if $A==1
+				replace sws = (1-nps)/(1-dps) if $A==0
+				sum sws
+				* MSM 
+				reg $Y $A [pw=sws], vce(robust) 	// MSM stabilized weight
+			    return scalar ace = e(b)[1,1]
+			end
+			qui bootstrap r(ace), reps(1000) seed(1): ATE
+			estat boot, all
+			drop ATE
+			
 /* 5.Double Robuts Methods */
 /* 5.1 IPTW with regression adjustment */
 		
