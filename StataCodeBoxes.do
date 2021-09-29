@@ -17,7 +17,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 Bug reports: miguel-angel.luque@lshtm.ac.uk	
 
-The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/DataSets
+The rhc dataset can be dowloaded at https://hbiostat.org/data/
 */
  
 *** Preliminaries
@@ -31,10 +31,24 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			
 /* Box 1: Setting the data */
 			* Define the outcome (Y), exposure (A), confounder (C), and confounders (W)
-			global Y death_d30 
-			global A rhc 
-			global C sex 
-			global W sex age edu race carcinoma 
+			encode swang1, g(rhc)       // Generate the treatment variable 'rhc'
+                        recode rhc (1=0) (2=1)      // Recode the treatment variable 'rhc'
+			lab def rhc 0 "No RHC" 1 "RHC", modify // Define labels for the rhc variable
+			lab val rhc rhc             // Assign the label to the rhc variable
+			replace dthdte="." if dthdte=="NA" 
+			destring dthdte, g(deathdate)   // Convert the outcome variable to numeric
+			gen death_d30 = 1 if (deathdate-sadmdte)<=30 // Create the outcome of death within 30 days
+			replace death_d30=0 if death_d30==. // Recode those who did not die within 30 days
+			rename sex sex2                     
+			encode sex2, g(sex)                 // Convert 'sex' to a numeric variable
+			rename race race2
+			encode race2, g(race)               // Convert 'race' to a numeric variable
+			rename ca ca2
+			encode ca2, g(ca)                   // Convert 'cancer' to a numeric variable
+			global Y death_d30                  // Outcome: 30-day mortality
+			global A rhc                        // Treatment: Right Heart Catheterisation
+			global C i.sex                        // One unique confounder of the set of W
+			global W i.sex c.age c.edu i.race i.ca // A set of five confounders
 	
 /* Box 2: Naive estimate of the ATE */
 			* Naive approach to estimate the causal effect
@@ -100,7 +114,7 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
     	
 /* Box 5: Non-parametric G-Formula using a fully saturated regression model in Stata (A) */
 			* method 1: conditional probabilities
-			regress $Y ibn.$A ibn.$A#c.($C) , noconstant vce(robust) coeflegend
+			regress $Y ibn.$A ibn.$A#$C , noconstant vce(robust) coeflegend
 			predictnl ATE = (_b[1.rhc] + _b[1.rhc#c.sex]*sex) - (_b[0bn.rhc] + _b[0bn.rhc#c.sex]*sex)
 			qui sum ATE
 			display "The ATE is: "  `r(mean)'
@@ -122,7 +136,7 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			
 /* Box 6: Non-parametric G-Formula using a fully saturated regression model in Stata (B) */
 			* method 2: marginal probabilities
-            regress $Y ibn.$A ibn.$A#c.($C) , noconstant vce(robust) coeflegend
+            regress $Y ibn.$A ibn.$A#$C , noconstant vce(robust) coeflegend
 			
 			* Marginal probability in each treatment group
 			margins $A , vce(unconditional) 
@@ -186,7 +200,7 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 			teffects ra ($Y $W) ($A)
 
 /* Box 12: Parametric multivariate regression adjustment using Stata’s margins command */
-			regress $Y ibn.$A ibn.$A#c.($W) , noconstant vce(robust)
+			regress $Y ibn.$A ibn.$A#($W) , noconstant vce(robust)
 			margins $A, vce(unconditional)
 			margins r.$A, contrast(nowald)
 		
@@ -525,19 +539,19 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 				
 		//	ATE estimation
 			* Regression adjustment
-			teffects ra (Y w1 w2 w3 w4) (A)
+			teffects ra (Y i.w1 i.w2 i.w3 i.w4) (A)
 			estimates store ra
 				
 			* IPTW
-			teffects ipw (Y) (A w1 w2 w3 w4)
+			teffects ipw (Y) (A i.w1 i.w2 i.w3 i.w4)
 			estimates store ipw
 				
 			* IPTW-RA
-			teffects ipwra (Y w1 w2 w3 w4) (A w1 w2 w3 w4)
+			teffects ipwra (Y i.w1 i.w2 i.w3 i.w4) (A i.w1 i.w2 i.w3 i.w4)
 			estimates store ipwra	
 				
 			* AIPTW
-			teffects aipw (Y w1 w2 w3 w4) (A w1 w2 w3 w4)
+			teffects aipw (Y i.w1 i.w2 i.w3 i.w4) (A i.w1 i.w2 i.w3 i.w4)
 			estimates store aipw
 				
 			* Results
@@ -550,17 +564,17 @@ The rhc dataset can be dowloaded at http://biostat.mc.vanderbilt.edu/wiki/Main/D
 				
 		// Relative bias of each ATE
 			* Regression adjustment
-			display abs(0.1787412 - 0.203419)/0.1787412 
+			display abs(0.1652166 - 0.1703391)/0.1652166
 			
 			* IPTW
-			display abs(0.1787412 - 0.2776606)/0.1787412
+			display abs(0.1652166 - 0.1617437)/0.1652166
 			
 			* IPTW-RA
-			display abs(0.1787412 - 0.2052088)/0.1787412
+			display abs(0.1652166 - 0.1674534)/0.1652166
 			
 			* AIPTW
-			display abs(0.1787412 - 0.2030092)/0.1787412
+			display abs(0.1652166 - 0.1697795)/0.1652166
 			
 			* ELTMLE
-			display abs(0.1787412 - 0.1787)/0.1787412
+			display abs(0.1652166 - 0.1652167)/0.1652166
 				
