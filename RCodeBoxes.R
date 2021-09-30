@@ -102,7 +102,7 @@
     reg <- glm(Y ~ -1 + (A1 + A0) + A1:(C1) + A0:(C1), data=data); summary(reg)
     Y1 <- margins(reg, variables="A1"); Y1
     Y0 <- margins(reg, variables="A0"); Y0
-    ATE <- Y1$fitted[A==1]-Y0$fitted[A==0]; mean(ATE)
+    ATE <- mean(Y1$fitted[A==1]) - mean(Y0$fitted[A==0]); ATE
     rm(ATE)
     
   ## 3.2 Parametric G-formula
