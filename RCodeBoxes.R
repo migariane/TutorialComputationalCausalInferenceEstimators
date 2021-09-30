@@ -33,6 +33,7 @@
 
 # Preliminaries
   rm(list=ls())
+  set.seed(1)  
 
   ### Box 1: Setting the data
   setwd("your path")
@@ -126,7 +127,7 @@
     print(summary(reg.std, contrast = "difference", reference=0))
     plot(reg.std)
 
-    ### Box 9: Bootstrap for the parametric regression adjustment one confounder)
+    ### Box 9: Bootstrap for the parametric regression adjustment one confounder
     library(boot)           # Install the Bootstrap package
     attach(data)          
     g.comp=function(data,indices)       # Define the function to estimate the ATE
@@ -145,41 +146,42 @@
     
     # Now with more than one confounder
     
-    ### Box 10: Parametric multivariate regression adjustment implementation of the G-Formula
-    mod1  <- glm(Y ~  C + w1 + w2 + w3 + w4, family="binomial", data=data[data$A==1,])    # Expected probability amongst those with RHC
-    mod0  <- glm(Y ~  C + w1 + w2 + w3 + w4, family="binomial", data=data[data$A==0,])    # Expected probability amongst those without RHC
-    GcompRA  <- cbind(Y1 = predict(mod1, newdata=data.frame(A = 1, C, w1, w2, w3, w4), type="response"),
-                   Y0 = predict(mod0, newdata=data.frame(A = 0, C, w1, w2, w3, w4), type="response"))
+    ### Box 10: Parametric multivariable regression adjustment implementation of the G-Formula
+    mod1  <- glm(Y ~  C + w1 + w2 + as.factor(w3) + as.factor(w4), family="binomial", data=data[data$A==1,])    # Expected probability amongst those with RHC
+    mod0  <- glm(Y ~  C + w1 + w2 + as.factor(w3) + as.factor(w4), family="binomial", data=data[data$A==0,])    # Expected probability amongst those without RHC
+    GcompRA  <- cbind(Y1 = predict(mod1, newdata=data.frame(A = 1, C, w1, w2, as.factor(w3), as.factor(w4)), type="response"),
+                   Y0 = predict(mod0, newdata=data.frame(A = 0, C, w1, w2, as.factor(w3), as.factor(w4)), type="response"))
     GcompRA <- as.data.frame(GcompRA)
     Y.1 <- GcompRA$Y1
     Y.0 <- GcompRA$Y0
     ATE <- mean((Y.1) - (Y.0), na.rm=TRUE); ATE     # ATE 
     rm(ATE)
     
-    ### Box 11: Parametric multivariate regression adjustment using "stdReg" R-package
+    ### Box 11: Parametric multivariable regression adjustment using "stdReg" R-package
     install.packages("stdReg")
     library(stdReg)
-    reg <- glm(Y ~ A + C + w1 + w2 + w3 + w4, data = data, family = poisson(link="log")); summary(reg)
+    reg <- glm(Y ~ A + C + w1 + w2 + as.factor(w3) + as.factor(w4), data = data, family = poisson(link="log")); summary(reg)
     reg.std <- stdGlm(fit=reg, data=data, X="A", x=seq(0,1))
     print(summary(reg.std, contrast="difference", reference=0))
     plot(reg.std)
     
-    ### Box 12: Parametric multivariate regression adjustment using "margins" R-package
-    reg1 <- glm(Y ~ -1 + (A1 + A0) + A1:(C1 + w1 + w2 + w3 + w4) + A0:(C0 + w1 + w2 + w3 + w4) , data=data); summary(reg1)
+    ### Box 12: Parametric multivariable regression adjustment using "margins" R-package
+    reg1 <- glm(Y ~ -1 + (A1 + A0) + A1:(C1 + w1 + w2 + as.factor(w3) + as.factor(w4)) + A0:(C0 + w1 + w2 + as.factor(w3) + as.factor(w4)) , data=data); summary(reg1)
     poY1m <- margins(reg1, variables="A1"); poY1m
     poY0m <- margins(reg1, variables="A0"); poY0m
     ATE2 <- poY1m$fitted[A==1] - poY0m$fitted[A==0]; mean(ATE2)
-    
-    ### Box 13 Bootstrap for the multivariate parametric regression adjustment
+    rm(ATE2)    
+
+    ### Box 13 Bootstrap for the multivariable parametric regression adjustment
     library(boot)           # Install the Bootstrap package
     attach(data)          
     g.comp=function(data,indices)       # Define the function to estimate the ATE
     {
       dat=data[indices,]
-      glm1  <- glm(Y ~ C + w1 + w2 + w3 + w4, family="binomial", dat=dat[dat$A==1,])
-      glm2  <- glm(Y ~ C + w1 + w2 + w3 + w4, family="binomial", dat=dat[dat$A==0,])
-      Y.1 = predict(glm1, newdata=data.frame(A = 1, C, w1, w2, w3, w4), type="response")
-      Y.0 = predict(glm2, newdata=data.frame(A = 0, C, w1, w2, w3, w4), type="response")
+      glm1  <- glm(Y ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), family="binomial", dat=dat[dat$A==1,])
+      glm2  <- glm(Y ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), family="binomial", dat=dat[dat$A==0,])
+      Y.1 = predict(glm1, newdata=data.frame(A = 1, C, w1, w2, as.factor(w3), as.factor(w4)), type="response")
+      Y.0 = predict(glm2, newdata=data.frame(A = 0, C, w1, w2, as.factor(w3), as.factor(w4)), type="response")
       mean((Y.1) - mean(Y.0))
     }
     g.comp(data,indices=1:nrow(data))     # Can get original estimate, by plugging in indices 1:n
@@ -192,7 +194,7 @@
   ## 4.1 Inverse probability of treatment weighting based on the propensity score plus regression adjustment
     
     # Box 14 (IPTW by hand)
-    p.s <- glm(A ~ as.factor(C) + w1 + w2 + w3 + w4, data=data, family=binomial)      # Propensity score mmodel for the exposure
+    p.s <- glm(A ~ as.factor(C) + w1 + w2 + as.factor(w3) + as.factor(w4), data=data, family=binomial)      # Propensity score mmodel for the exposure
     p.score <- ifelse(data$A == 0, 1 - predict(p.s, type = "response"), predict(p.s, type = "response"))  # Assign Propensity score weights
     #table(p.score)      # Table of Propensity Scores
     data$w <- 1/p.score       # Generate IP Weights 
@@ -235,7 +237,7 @@
     # Multivariable
     ipw.ATE <- ipwpoint(exposure = A, family = "binomial", link = "logit", 
                         numerator = ~ 1, 
-                        denominator = ~ C + w1 + w2 + w3 + w4, 
+                        denominator = ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), 
                         data = data2)
     summary(ipw.ATE$ipw.weights)
     ipwplot(weights = ipw.ATE$ipw.weights, logscale = FALSE, main = "Unstabilized weights", xlim = c(0.5, 2))
@@ -248,7 +250,7 @@
     ### Box 17: Assessing IPTW balance
     install.packages("twang")
     library(twang)
-    ps.balance <- ps(A ~ C + w1 + w2 + w3 + w4, data = data2, 
+    ps.balance <- ps(A ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), data = data2, 
                      n.trees=1000, interaction.depth=2, shrinkage=0.01, perm.test.iters=0,
                      stop.method=c("es.mean","ks.max"), estimand = "ATE", verbose=FALSE)
     plot(ps.balance)
@@ -267,7 +269,7 @@
     
     ### Box 19: Assessing overlap using plots
     # Fit a propensity score model
-    m_PS<-glm(A ~ C + w1 + w2 + w3 + w4, data = data2, family=binomial(link="logit"))
+    m_PS<-glm(A ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), data = data2, family=binomial(link="logit"))
     summary(m_PS)
     
     # Estimate the propensity score
@@ -293,7 +295,7 @@
     ### Box 20: Computation of the IPTW estimator for the ATE using a MSM
     
     # Unstabilized weights 
-    msm <- lm(Y  ~ A + C +  w1 + w2 + w3 + w4, data = data, weights = data$w)     # MSM
+    msm <- lm(Y  ~ A + C +  w1 + w2 + as.factor(w3) + as.factor(w4), data = data, weights = data$w)     # MSM
     library(sandwich)
     SE <-sqrt(diag(vcovHC(msm, type="HC0")))       # robust standard errors
     beta <- coef(msm)
@@ -302,7 +304,7 @@
     cbind(beta, lcl, ucl)[2,]
   
     # Stabilized weights
-    denom.fit <- glm(A ~ as.factor(C) + w1 + w2 + w3 + w4, 
+    denom.fit <- glm(A ~ as.factor(C) + w1 + w2 + as.factor(w3) + as.factor(w4), 
                      family = binomial(), data = data)
     denom.p <- predict(denom.fit, type = "response")    # Stablized Weights  
   
@@ -323,10 +325,10 @@
 ## Double-robust methods
   ## 5.1 IPTW with regression adjustment  
     ### Box 21: Computation of the IPTW-RA estimator for the ATE and bootstrap for statistical inference
-    glm1  <- glm(Y ~ C + w1 + w2 + w3 + w4,  weights = data$w[data$A==1], data=data[data$A==1,])
-    Y.1 = predict(glm1,  newdata=data.frame(A = 1, C, w1, w2, w3, w4), type="response")
-    glm2  <- glm(Y ~ C + w1 + w2 + w3 + w4,  weights = data$w[data$A==0], data=data[data$A==0,])
-    Y.0 = predict(glm2,  newdata=data.frame(A = 0, C, w1, w2, w3, w4), type="response")
+    glm1  <- glm(Y ~ C + w1 + w2 + as.factor(w3) + as.factor(w4),  weights = data$w[data$A==1], data=data[data$A==1,])
+    Y.1 = predict(glm1,  newdata=data.frame(A = 1, C, w1, w2, as.factor(w3), as.factor(w4)), type="response")
+    glm2  <- glm(Y ~ C + w1 + w2 + as.factor(w3) + as.factor(w4),  weights = data$w[data$A==0], data=data[data$A==0,])
+    Y.0 = predict(glm2,  newdata=data.frame(A = 0, C, w1, w2, as.factor(w3), as.factor(w4)), type="response")
     ATE <- mean(Y.1 - Y.0); ATE
     ATE2 <- mean(data$w*as.numeric(data$A==1)*Y.1)/mean( data$w*as.numeric(data$A==1)) - mean(data$w*as.numeric(data$A==0)*Y.0)/mean(data$w*as.numeric(data$A==0));ATE2
     rm(ATE, ATE2)
@@ -335,7 +337,7 @@
     library(ipw)
     ipw.ATE <- ipwpoint(exposure = A, family = "binomial", link = "logit", 
                         numerator = ~ C, 
-                        denominator = ~ C + w1 + w2 + w3 + w4, 
+                        denominator = ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), 
                         data = data2)
     summary(ipw.ATE$ipw.weights)
     ipwplot(weights = ipw.ATE$ipw.weights, logscale = FALSE, main = "Stabilized weights", xlim = c(0.5, 2))
@@ -349,16 +351,16 @@
   ## 5.2 Augmented inverse probability weighting
     
     ### Box 23: Computation of the AIPTW estimator for the ATE and bootstrap for statistical inference
-    mod  <- glm(Y ~ A + C + w1 + w2 + w3 + w4, family="binomial", data=data)
+    mod  <- glm(Y ~ A + C + w1 + w2 + as.factor(w3) + as.factor(w4), family="binomial", data=data)
     PO   <- cbind(Yhat = predict(mod),
-                  Y1 = predict(mod, newdata=data.frame(A = 1, C, w1, w2, w3, w4), type="response"),
-                  Y0 = predict(mod, newdata=data.frame(A = 0, C, w1, w2, w3, w4), type="response"))
+                  Y1 = predict(mod, newdata=data.frame(A = 1, C, w1, w2, as.factor(w3), as.factor(w4)), type="response"),
+                  Y0 = predict(mod, newdata=data.frame(A = 0, C, w1, w2, as.factor(w3), as.factor(w4)), type="response"))
     RA <- as.data.frame(PO)   # Potential Outcomes
     Yhat <- RA$Yhat
     Y.1a <- RA$Y1
     Y.0a <- RA$Y0
   
-    g <- glm(A ~ C + w1 + w2 + w3 + w4, family = binomial(), data = data)
+    g <- glm(A ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), family = binomial(), data = data)
     gw <- predict(g, type = "response")
     gws <- ifelse(data$A == 0, (-(1 - data$A)/(1 - gw)),(data$A/gw)); sum(gws)    # estimation of weights
     AIPTW <- mean(gws*(data$Y - plogis(RA$Yhat)) + ((Y.1a) - (Y.0a))); AIPTW  # ATE 
@@ -374,11 +376,11 @@
     AIPTW.b = function(data,indices)        # Inference using Bootstrap
     {
       dat=data[indices,]
-      mod  <- glm(Y ~ A + C + w1 + w2 + w3 + w4, family="binomial", data=data)
+      mod  <- glm(Y ~ A + C + w1 + w2 + as.factor(w3) + as.factor(w4), family="binomial", data=data)
       Yhat = predict(mod)
-      Y1 = predict(mod, newdata=data.frame(A = 1, C, w1, w2, w3, w4))
-      Y0 = predict(mod, newdata=data.frame(A = 0, C, w1, w2, w3, w4))
-      g <- glm(A ~ C + w1 + w2 + w3 + w4, family="binomial",  data = data)
+      Y1 = predict(mod, newdata=data.frame(A = 1, C, w1, w2, as.factor(w3), as.factor(w4)))
+      Y0 = predict(mod, newdata=data.frame(A = 0, C, w1, w2, as.factor(w3), as.factor(w4)))
+      g <- glm(A ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), family="binomial",  data = data)
       gw <- predict(g,type="response")
       gws <- ifelse(A == 0, (-(1 - A)/(1 - gw)),(A/gw))
       mean(gws*(Y - plogis(Yhat)) + (plogis(Y1) - plogis(Y0)))
@@ -389,7 +391,7 @@
     boot.ci(boot.out,type="norm",conf=0.95)
     
     ### Box 23 bis: Computation of the AIPTW estimator using drtmle package for the ATE
-    w <- subset(data, select=c(C, w1, w2, w3 , w4))
+    w <- subset(data, select=c(C, w1, w2, as.factor(w3), as.factor(w4)))
     fit1 <- drtmle(W = w, A = A, Y = Y, # input data
                    a_0 = c(0, 1), # return estimates for A = 0 and A = 1
                    SL_Q = "SL.npreg", # use kernel regression for E(Y | A = a, W)
@@ -407,13 +409,13 @@
     
     ### Box 25: Computational implementation of TMLE by hand
     # Step 1
-    Gcomp <- glm(Y ~ A + C + w1 + w2 + w3 + w4, family="binomial", data=data2)
+    Gcomp <- glm(Y ~ A + C + w1 + w2 + as.factor(w3) + as.factor(w4), family="binomial", data=data2)
     # Prediction for A, A=1 and, A=0
     QAW <- predict(Gcomp)
     Q1W = predict(Gcomp, newdata=data.frame(A = 1, data2[,c("C", "w1","w2","w3","w4")])) 
     Q0W = predict(Gcomp, newdata=data.frame(A = 0, data2[,c("C", "w1","w2","w3","w4")]))
     # Step 2 estimation of the propensity score (ps)
-    psm <- glm(A ~ C + w1 + w2 + w3 + w4, family = binomial, data=data2) 
+    psm <- glm(A ~ C + w1 + w2 + as.factor(w3) + as.factor(w4), family = binomial, data=data2) 
     gW = predict(psm, type = "response")
     g1W = (1 / gW)
     g0W = (-1 / (1-gW))
@@ -441,7 +443,7 @@
     ### Box 26: TMLE with data-adaptive estimation using the R package
     set.seed(777)
     library(tmle)
-    w <- subset(data, select=c(C, w1, w2, w3 , w4))
+    w <- subset(data, select=c(C, w1, w2, w3, w4))
     fittmle <- tmle(data$Y, data$A, W=w, family="binomial", 
                     Q.SL.library = c("SL.glm","SL.glm.interaction","SL.step.interaction","SL.gam","SL.randomForest"),
                     g.SL.library = c("SL.glm","SL.glm.interaction","SL.step.interaction","SL.gam","SL.randomForest"))
