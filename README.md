@@ -1,7 +1,7 @@
 ## Educational notes: Introduction to computational causal inference using reproducible Stata, R and Python code
 
 ### Authors
-Matthew J. Smith 1| Mohammad Ali Mansournia 2| Camille Maringe 1| Paul N. Zivich 3,4| Stephen R. Cole 3| Clemence Leyrat 1| Aurelien Belot 1| Bernard Rachet 1| Miguel Angel Luque-Fernandez *1,5,6|
+Matthew J. Smith [1] | Mohammad Ali Mansournia [2] | Camille Maringe [1] | Paul N. Zivich [3,4] | Stephen R. Cole [3] | Clemence Leyrat [1] | Aurelien Belot [1] | Bernard Rachet [1] | Miguel Angel Luque-Fernandez [*1,5,6] |
 
 ### Affiliations  
 1. Inequalities in Cancer Outcomes Network, Department of Non-communicable Disease Epidemiology. London School of Hygieneand Tropical Medicine, London, U.K.
