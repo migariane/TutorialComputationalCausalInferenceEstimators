@@ -6,8 +6,9 @@
 
 # Miguel Angel Luque Fernandez, PhD
 # Assistant Professor of Epidemiology and Biostatistics
+
 # Matthew Smith, PhD
-# Research Fellow
+# Postdoctoral Research Fellow of Biostatistics
 
 # Inequalities in Cancer Outcomes Network, LSHTM, London, UK
 
