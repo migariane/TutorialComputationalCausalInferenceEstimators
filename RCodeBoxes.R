@@ -2,7 +2,7 @@
 
 # Tutorial: causal inference methods made easy for applied resarchers/epidemiologists/statisticians 
 
-# ICON-LSHTM, LONDON, 30th June 2020
+# ICON-LSHTM, LONDON, 30th June 2021 (updated 30th September 2021)
 
 # Miguel Angel Luque Fernandez, PhD
 # Assistant Professor of Epidemiology and Biostatistics
