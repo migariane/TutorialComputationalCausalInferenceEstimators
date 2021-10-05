@@ -31,8 +31,16 @@ The rhc dataset can be dowloaded at https://hbiostat.org/data/
 			
 /* Box 1: Setting the data */
 			* Define the outcome (Y), exposure (A), confounder (C), and confounders (W)
+			
+			* Using the rhc.dta at https://github.com/migariane/TutorialComputationalCausalInferenceEstimators
+			global Y death_d30                  // Outcome: 30-day mortality
+			global A rhc                        // Treatment: Right Heart Catheterisation
+			global C i.sex                        // One unique confounder of the set of W
+			global W i.sex c.age c.edu i.race i.carcinoma // A set of five confounders
+			
+			* Using the original dataset at https://hbiostat.org/data/ 
 			encode swang1, g(rhc)       // Generate the treatment variable 'rhc'
-                        recode rhc (1=0) (2=1)      // Recode the treatment variable 'rhc'
+            recode rhc (1=0) (2=1)      // Recode the treatment variable 'rhc'
 			lab def rhc 0 "No RHC" 1 "RHC", modify // Define labels for the rhc variable
 			lab val rhc rhc             // Assign the label to the rhc variable
 			replace dthdte="." if dthdte=="NA" 
@@ -44,12 +52,9 @@ The rhc dataset can be dowloaded at https://hbiostat.org/data/
 			rename race race2
 			encode race2, g(race)               // Convert 'race' to a numeric variable
 			rename ca ca2
-			encode ca2, g(ca)                   // Convert 'cancer' to a numeric variable
-			global Y death_d30                  // Outcome: 30-day mortality
-			global A rhc                        // Treatment: Right Heart Catheterisation
-			global C i.sex                        // One unique confounder of the set of W
+			encode ca2, g(ca)                   // Convert 'cancer' to a numeric variable	
 			global W i.sex c.age c.edu i.race i.ca // A set of five confounders
-	
+			
 /* Box 2: Naive estimate of the ATE */
 			* Naive approach to estimate the causal effect
 			regr $Y $A $C 	
